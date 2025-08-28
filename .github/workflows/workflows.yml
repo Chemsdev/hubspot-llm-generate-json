@@ -42,7 +42,7 @@ jobs:
           LAMBDA_NAME="hubspot-llm-generate-json"
           if aws lambda get-function --function-name "$LAMBDA_NAME" > /dev/null 2>&1; then
             echo "✅ Lambda déjà existante, import dans l'état Terraform..."
-            terraform import aws_lambda_function.hubspot-llm-generate-json "$LAMBDA_NAME" || true
+            terraform import aws_lambda_function.hubspot_llm_generate_json "$LAMBDA_NAME" || true
           else
             echo "ℹ️ Lambda inexistante, elle sera créée par Terraform."
           fi

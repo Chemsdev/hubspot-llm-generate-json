@@ -9,7 +9,7 @@ from tools import *
 # =========================================
 # Fonction Lambda
 # =========================================
-def lambda_handler(event=None, context=None):
+def lambda_handler(event, context):
     bucket = "hubspot-tickets-pdf"
 
     # Connexion AWS.
@@ -42,6 +42,3 @@ def lambda_handler(event=None, context=None):
     except Exception as e:
         print(f"Erreur dans Lambda : {e}")
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
-
-
-lambda_handler()
