@@ -7,14 +7,9 @@ data "aws_lambda_layer_version" "python-dotenv" {
   layer_name = "python-dotenv"
 }
 
-data "aws_lambda_layer_version" "mistralai" {
-  layer_name = "mistralai"
-}
-
 data "aws_lambda_layer_version" "requests" {
   layer_name = "requests"
 }
-
 
 
 # Création du fichier ZIP de la fonction Lambda
