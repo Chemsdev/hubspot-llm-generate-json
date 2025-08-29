@@ -31,27 +31,36 @@ jobs:
       - name: 🌍 Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: '1.6.6' 
+          terraform_version: '1.6.6'
 
       - name: 🚀 Terraform Init
         run: terraform init
 
       - name: 🔍 Import Lambda si elle existe
+        env:
+          TF_VAR_llm_api_key: ${{ secrets.LLM_API_KEY }}
+          TF_VAR_llm_api_base_url: ${{ secrets.LLM_API_BASE_URL }}
         run: |
           set -e
           LAMBDA_NAME="hubspot-llm-generate-json"
+          # Créer un fichier temporaire .tfvars avec les variables LLM
+          echo "llm_api_key = \"${TF_VAR_llm_api_key}\"" > temp.tfvars
+          echo "llm_api_base_url = \"${TF_VAR_llm_api_base_url}\"" >> temp.tfvars
+
           if aws lambda get-function --function-name "$LAMBDA_NAME" > /dev/null 2>&1; then
             echo "✅ Lambda déjà existante, import dans l'état Terraform..."
-            terraform import aws_lambda_function.hubspot_llm_generate_json "$LAMBDA_NAME" || true
+            terraform import -var-file=temp.tfvars aws_lambda_function.hubspot_llm_generate_json "$LAMBDA_NAME" || true
           else
             echo "ℹ️ Lambda inexistante, elle sera créée par Terraform."
           fi
+
+          # Supprimer le fichier temporaire
+          rm temp.tfvars
 
       - name: 🔎 Terraform Plan
         env:
           TF_VAR_llm_api_key: ${{ secrets.LLM_API_KEY }}
           TF_VAR_llm_api_base_url: ${{ secrets.LLM_API_BASE_URL }}
-
         run: terraform plan
 
       - name: 📦 Terraform Apply
