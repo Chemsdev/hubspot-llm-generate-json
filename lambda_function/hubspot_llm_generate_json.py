@@ -22,7 +22,7 @@ def lambda_handler(event, context):
         # Récupérer le dernier fichier OCR dans PDF_OCR/
         s3_key = get_last_file_ocr(s3_client, bucket, prefix="PDF_OCR/")
         print(f"📄 Dernier fichier trouvé : {s3_key}")
-        return
+        
         # Définir un output_key basé sur le nom du fichier OCR
         output_key = "DEAL_JSON/" + s3_key.split("/")[-1].replace("OCR_", "DEAL_").replace(".txt", ".json")
 
