@@ -27,7 +27,7 @@ def lambda_handler(event, context):
         output_key = "DEAL_JSON/" + s3_key.split("/")[-1].replace("OCR_", "DEAL_").replace(".txt", ".json")
 
         # Extraction JSON via LLM.
-        extracted_json = extract_data_from_s3_pdf_ocr(s3_client=s3_client, bucket=bucket, s3_key=s3_key)
+        extracted_json = extract_data_from_s3_pdf_ocr(s3_client=s3_client, bucket_name=bucket, s3_key=s3_key)
 
         # Sauvegarde du JSON dans S3.
         s3_client.put_object(
@@ -42,5 +42,3 @@ def lambda_handler(event, context):
     except Exception as e:
         print(f"Erreur dans Lambda : {e}")
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
-
-

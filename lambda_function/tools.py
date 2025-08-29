@@ -28,86 +28,83 @@ HEADERS = {
 }
 
 # Prompt du LLM.
-ENHANCED_STRUCTURED_JSON_PROMPT = """
-Vous êtes un expert en extraction de données de bons de commande de pharmacie français.
+def get_prompt(markdown_content):
+    ENHANCED_STRUCTURED_JSON_PROMPT = f"""Vous êtes un expert en extraction de données de bons de commande de pharmacie français.
 
-Vous recevez un texte structuré extrait d'un PDF avec des informations spatiales et de confiance.
-Le texte est organisé en PAGES, BLOCS et LIGNES avec leurs positions Y et scores de confiance.
-Les éléments alignés horizontalement dans une même ligne forment des colonnes de tableau.
+Analysez sémantiquement le contenu MARKDOWN et extrayez TOUS les produits présents dans les tableaux.
 
-INSTRUCTIONS D'ANALYSE :
+CONTENU MARKDOWN À ANALYSER :
+{markdown_content}
 
-1. RECHERCHE DE TABLEAUX :
-   - Identifiez les lignes qui forment des tableaux de produits
-   - Les lignes avec des éléments séparés par des espaces significatifs représentent des colonnes
-   - Les colonnes typiques sont : Code/Désignation, Quantité, Prix unitaire, Remise (%), Prix remisé, Total
-   - Recherchez les en-têtes de colonnes pour identifier la structure
+INSTRUCTIONS CRITIQUES POUR EXTRACTION DYNAMIQUE :
 
-2. EXTRACTION DES DONNÉES :
-   - Nom de l'entreprise : DOIT contenir "pharmacie", "parapharmacie", "officine" ou termes similaires (insensible à la casse), sinon null
-   - Date de commande : format DD/MM/YYYY ou similaire
-   - Adresse et code postal de la pharmacie
-   - Pour chaque produit dans le tableau :
-     * Nom du produit (première colonne après code)
-     * Quantité (nombre entier dans colonne dédiée)
-     * Prix unitaire (nombre décimal)
-     * Remise en pourcentage (si disponible)
-     * Prix unitaire remisé (si disponible)
+1. IDENTIFICATION DE L'ENTREPRISE :
+   - Rechercher les en-têtes ## contenant "PHARMACIE", "PARAPHARMACIE"
+   - Extraire le nom complet de l'entreprise
+   - Localiser l'adresse de facturation ou livraison
+   - Extraire le code postal (5 chiffres)
 
-3. TRAITEMENT SPÉCIAL :
-   - Produits marqués "(GRATUIT)" ou "GRATUIT" : remise = 100%, prix_unitaire_remise = 0.0
-   - Ignorez les lignes de totaux, sous-totaux, en-têtes et pieds de page
-   - Utilisez les scores de confiance : privilégiez les lignes avec confiance > 0.7
-   - Les codes produit commencent par des parenthèses : (3770010539360)
+2. INFORMATIONS DE COMMANDE :
+   - Date : après "Date de commande :" (format DD/MM/YYYY)
+   - Numéro : après "BON DE COMMANDE N°" ou similaire
 
-4. ALIGNEMENT SPATIAL :
-   - Les éléments sur la même ligne Y appartiennent à la même ligne de produit
-   - Analysez l'espacement entre les mots pour identifier les colonnes
-   - Position Y similaire = même ligne de tableau
-   - Quantité et prix sont des nombres, nom produit est du texte
+3. EXTRACTION DYNAMIQUE DE TOUS LES PRODUITS :
+   - Identifier TOUS les tableaux de produits avec colonnes : Code Article, Désignation, Qte., etc.
+   - Extraire CHAQUE ligne de produit du tableau, MÊME celles avec des valeurs 0,000
+   - Le nombre de produits peut varier : 1, 2, 5, 10, 20+ produits
+   - INCLURE TOUS LES TYPES : produits principaux, présentoirs, accessoires, échantillons
+   - Pour chaque produit trouvé :
+     * nom_produit : contenu de la colonne "Désignation" (nettoyer les codes entre parenthèses)
+     * quantite : colonne "Qte."
+     * prix_unitaire : colonne "P.U.H.T." (convertir virgules en points)
+     * remise_pourcentage : colonne "R. (%)" (convertir virgules en points)
+     * prix_unitaire_remise : colonne "P.U. rem." (convertir virgules en points)
 
-5. RÈGLES DE PARSING :
-   - Si une ligne contient un code produit (nombre entre parenthèses), c'est une ligne produit
-   - La quantité est le premier nombre entier après le nom du produit
-   - Le prix unitaire est le nombre décimal (format français avec virgule)
-   - Distinguez les unités (gr, ml) qui font partie du nom du quantités numériques
+4. RÈGLES IMPORTANTES :
+   - NE PAS limiter le nombre de produits
+   - Extraire TOUS les produits trouvés dans le tableau
+   - Même les produits gratuits (0,000€) doivent être inclus
+   - Convertir virgules → points : 495,60 → 495.60
+   - Date au format DD/MM/YYYY : "31/07/2025"
 
-RETOURNEZ UNIQUEMENT le JSON suivant :
+5. STRUCTURE JSON ATTENDUE :
+   - Le tableau "produits" doit contenir TOUS les produits trouvés
+   - Pas de limite sur le nombre d'éléments dans le tableau
+   - Adapter dynamiquement selon le contenu du markdown
 
-{
+TEMPLATE JSON FLEXIBLE À SUIVRE :
+
+{{
   "date_commande": "...",
-  "entreprise": {
+  "bon_commande": "...",
+  "entreprise": {{
     "nom": "...",
     "adresse": "...",
     "code_postal": "..."
-  },
+  }},
   "produits": [
-    {
+    {{
       "nom_produit": "...",
       "quantite": ...,
       "prix_unitaire": ...,
       "remise_pourcentage": ...,
       "prix_unitaire_remise": ...
-    }
+    }}
+    // Répéter pour CHAQUE produit trouvé dans le tableau
+    // Peut être 1, 2, 5, 10 ou plus de produits
   ],
   "total": ...,
-  "metadata": {
+  "metadata": {{
     "pdf_type": "bon_de_commande",
     "structure_detectee": "...",
     "nombre_blocs_analyses": ...,
     "confiance_moyenne": ...,
     "extraction_errors": []
-  }
-}
-
-RÈGLES :
-- Si une information n'est pas trouvée, utilisez null
-- Pour remise_pourcentage : valeur décimale (30% = 30.0)
-- Analysez la structure spatiale complète pour reconstituer le tableau
-- Privilégiez les lignes avec une haute confiance OCR
-- Séparez clairement nom produit (texte) et quantité (nombre entier)
-- Répondez uniquement avec le JSON, sans explication
+  }}
+}}
 """
+    return ENHANCED_STRUCTURED_JSON_PROMPT
+
 
 # =========================================
 # Connexion AWS
@@ -161,10 +158,17 @@ def extract_data_from_s3_pdf_ocr(s3_client, bucket_name: str, s3_key: str) -> Di
     try:
         response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
         ocr_text = response["Body"].read().decode("utf-8")
+        
+        print("OCR here")
+        print(type(ocr_text))
+        print(ocr_text)
+        
         print(f"✅ Fichier OCR chargé depuis S3 ({s3_key})")
     except Exception as e:
         raise RuntimeError(f"Erreur lors du téléchargement du fichier S3 : {e}")
-
+    
+    # Génération du prompt strict JSON
+    ENHANCED_STRUCTURED_JSON_PROMPT = get_prompt(markdown_content=ocr_text)
     messages = [
         {"role": "system", "content": ENHANCED_STRUCTURED_JSON_PROMPT},
         {"role": "user", "content": ocr_text}
@@ -184,7 +188,20 @@ def extract_data_from_s3_pdf_ocr(s3_client, bucket_name: str, s3_key: str) -> Di
         response.raise_for_status()
         llm_response = response.json()
         llm_text = llm_response["choices"][0]["message"]["content"]
+        
+        print("REPONSE")
+        print(llm_text)
+        
+        # Nettoyage strict de la chaîne JSON
+        llm_text = llm_text.strip()
+        
+        # Si le modèle renvoie du texte avant/après le JSON
+        if llm_text.startswith("```json") and llm_text.endswith("```"):
+            llm_text = llm_text.replace("```json", "").replace("```", "").strip()
+        
+        # Conversion en dictionnaire Python
         structured_data = json.loads(llm_text)
         return structured_data
+
     except Exception as e:
         raise RuntimeError(f"Erreur lors de l'extraction JSON avec LLM : {e}")
