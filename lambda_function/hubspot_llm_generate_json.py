@@ -7,7 +7,7 @@ from tools import *
 # =========================================
 # Fonction Lambda
 # =========================================
-def lambda_handler():
+def lambda_handler(event, context):
     """
     Lambda pour extraire des données via LLM depuis le dernier fichier OCR
     et mettre à jour le log existant correspondant au PDF.
@@ -118,7 +118,3 @@ def lambda_handler():
             print(f"⚠️ Log mis à jour avec l'erreur ({log_key})")
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
         # ----------------------------------------------------------->
-
-
-
-lambda_handler()
