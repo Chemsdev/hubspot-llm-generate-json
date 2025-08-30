@@ -118,3 +118,7 @@ def lambda_handler(event, context):
             print(f"⚠️ Log mis à jour avec l'erreur ({log_key})")
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
         # ----------------------------------------------------------->
+        
+        
+        
+        
