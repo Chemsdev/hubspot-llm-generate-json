@@ -157,12 +157,7 @@ def get_last_file_ocr(s3_client, bucket, prefix="PDF_OCR/"):
 def extract_data_from_s3_pdf_ocr(s3_client, bucket_name: str, s3_key: str) -> Dict[str, Any]:
     try:
         response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
-        ocr_text = response["Body"].read().decode("utf-8")
-        
-        print("OCR here")
-        print(type(ocr_text))
-        print(ocr_text)
-        
+        ocr_text = response["Body"].read().decode("utf-8") 
         print(f"✅ Fichier OCR chargé depuis S3 ({s3_key})")
     except Exception as e:
         raise RuntimeError(f"Erreur lors du téléchargement du fichier S3 : {e}")
