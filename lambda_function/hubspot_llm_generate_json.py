@@ -1,7 +1,7 @@
 from typing import Dict, Any
 from dotenv import load_dotenv
 from datetime import datetime
-
+import json, re
 from tools import *
 
 # =========================================
@@ -12,7 +12,6 @@ def lambda_handler(event, context):
     Lambda pour extraire des données via LLM depuis le dernier fichier OCR
     et mettre à jour le log existant correspondant au PDF.
     """
-    import json, re
 
     # ----------------------------------------------------------->
     # (1) Définir le bucket S3
